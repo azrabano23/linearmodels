@@ -12,7 +12,7 @@ from linearmodels.panel.data import PanelData
 from linearmodels.panel.model import PanelOLS, PooledOLS
 from linearmodels.panel.utility import AbsorbingEffectWarning
 from linearmodels.shared.exceptions import MemoryWarning
-from linearmodels.shared.hypotheses import WaldTestStatistic
+from linearmodels.shared.hypotheses import InvalidTestStatistic, WaldTestStatistic
 from linearmodels.shared.utility import AttrDict
 from linearmodels.tests.panel._utility import (
     access_attributes,
@@ -1163,6 +1163,31 @@ def test_f_pooled(data):
     assert_allclose(res.f_pooled.stat, f_pool)
     assert res.f_pooled.df == v1
     assert res.f_pooled.df_denom == v2
+
+
+@pytest.mark.parametrize(
+    "cov_kwargs",
+    [
+        {"cov_type": "robust"},
+        {"cov_type": "clustered", "cluster_entity": True},
+        {"cov_type": "kernel"},
+    ],
+)
+def test_f_pooled_robust_cov(data, cov_kwargs):
+    # GH 631: the poolability F-test is homoskedastic-only and should not be
+    # reported alongside robust/clustered inference
+    mod = PanelOLS(data.y, data.x, entity_effects=True)
+    res = mod.fit(**cov_kwargs)
+    assert isinstance(res.f_pooled, InvalidTestStatistic)
+    assert np.isnan(res.f_pooled.stat)
+    assert np.isnan(res.f_pooled.pval)
+    assert "F-test for Poolability" not in str(res.summary)
+    # The model F-statistics are unaffected
+    unadjusted = mod.fit()
+    assert_allclose(res.f_statistic.stat, unadjusted.f_statistic.stat)
+    assert np.isfinite(res.f_statistic_robust.stat)
+    assert "F-test for Poolability" in str(unadjusted.summary)
+    assert np.isfinite(unadjusted.f_pooled.stat)
 
 
 def test_entity_other(data):

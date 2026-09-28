@@ -2062,13 +2062,22 @@ class PanelOLS(_PanelModelBase):
 
             denom = resid_ss / df_denom
             stat = num / denom
-            f_pooled = WaldTestStatistic(
+            f_pooled: WaldTestStatistic = WaldTestStatistic(
                 stat,
                 "Effects are zero",
                 df_num,
                 df_denom=df_denom,
                 name="Pooled F-statistic",
             )
+            if type(cov) is not HomoskedasticCovariance:
+                # The poolability test is a classical F built from residual sums
+                # of squares and so is only valid under homoskedasticity.  There
+                # is no simple robust analog, so it is not reported (as in Stata).
+                f_pooled = InvalidTestStatistic(
+                    "The poolability F-test is only valid under homoskedasticity. "
+                    'Refit using cov_type="unadjusted" to compute this test.',
+                    name="Pooled F-statistic",
+                )
             res.update(f_pooled=f_pooled)
             effects = DataFrame(
                 eps_effects - eps,

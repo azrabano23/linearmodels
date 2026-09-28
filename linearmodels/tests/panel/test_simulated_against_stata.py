@@ -8,6 +8,7 @@ import pytest
 
 from linearmodels.panel.data import PanelData
 from linearmodels.panel.model import BetweenOLS, PanelOLS, PooledOLS, RandomEffects
+from linearmodels.shared.hypotheses import InvalidTestStatistic
 from linearmodels.shared.utility import AttrDict
 from linearmodels.tests.panel.results import parse_stata_results
 
@@ -143,8 +144,14 @@ def test_cov(data):
 def test_f_pooled(data):
     f_pool = getattr(data.fit, "f_pooled", None)
     stata_f_pool = data.stata.F_f
-    if not f_pool or np.isnan(stata_f_pool):
+    if not f_pool:
         pytest.skip("Result not available for testing")
+    if np.isnan(stata_f_pool):
+        # Stata does not report the poolability test with robust or
+        # clustered covariance estimators
+        assert data.fit_options["cov_type"] != "unadjusted"
+        assert isinstance(f_pool, InvalidTestStatistic)
+        return
     assert_allclose(f_pool.stat, stata_f_pool)
 
 

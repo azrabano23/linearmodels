@@ -773,7 +773,10 @@ class PanelEffectsResults(PanelResults):
         Notes
         -----
         Joint test that all included effects are zero.  Only correct under an
-        assumption of homoskedasticity.
+        assumption of homoskedasticity, and so is only computed when the model
+        is fit using ``cov_type="unadjusted"``. When a robust, clustered or
+        kernel covariance estimator is used, an ``InvalidTestStatistic`` is
+        returned.
 
         The test statistic is defined as
 
