@@ -534,9 +534,11 @@ class _PanelModelBase:
                 return InvalidTestStatistic("Model contains only a constant", name=name)
 
             num_df -= 1
+            # The constant in the weighted model is root_w, so the restricted
+            # model's residuals are y less its projection onto root_w
             weps_const = cast(
                 "linearmodels.typing.data.Float64Array",
-                y - float(np.squeeze((root_w.T @ y) / (root_w.T @ root_w))),
+                y - root_w * ((root_w.T @ y) / (root_w.T @ root_w)),
             )
 
         resid_ss = float(np.squeeze(weps.T @ weps))
