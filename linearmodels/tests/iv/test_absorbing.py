@@ -750,3 +750,30 @@ def test_lsmr_annihilate_empty():
     y = np.empty((1000, 0))
     y_out = lsmr_annihilate(x, y)
     assert y_out.shape == y.shape
+
+
+def test_refit_does_not_change_df():
+    rs = np.random.RandomState(0)
+    nobs = 200
+    x = pd.DataFrame(
+        {
+            "const": 1.0,
+            "x1": rs.standard_normal(nobs),
+            "x2": rs.standard_normal(nobs),
+        }
+    )
+    y = x.x1 + rs.standard_normal(nobs)
+    absorb = pd.DataFrame({"cat": pd.Categorical(rs.randint(0, 20, nobs))})
+    mod = AbsorbingLS(y, x, absorb=absorb)
+    first = mod.fit(cov_type="unadjusted", debiased=True)
+    # 3 regressors + 20 categories - 1 for the constant
+    assert first.df_model == 22
+    assert first.df_resid == nobs - 22
+    for cov_type in ("unadjusted", "robust"):
+        res = mod.fit(cov_type=cov_type, debiased=True)
+        assert res.df_model == first.df_model
+        assert res.df_resid == first.df_resid
+        assert res.f_statistic.df_denom == first.f_statistic.df_denom
+        assert_allclose(res.rsquared_adj, first.rsquared_adj)
+    res = mod.fit(cov_type="unadjusted", debiased=True)
+    assert_series_equal(res.pvalues, first.pvalues)

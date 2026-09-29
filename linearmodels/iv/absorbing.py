@@ -733,6 +733,7 @@ class AbsorbingLS:
         self._has_constant = False
         self._has_constant_exog = self._check_constant()
         self._constant_absorbed = False
+        # Number of absorbed parameters; the regressors are added in fit
         self._num_params = 0
         self._regressors: sp.csc_matrix | None = None
         self._regressors_hash: tuple[tuple[str, ...], ...] | None = None
@@ -1100,7 +1101,6 @@ class AbsorbingLS:
             params = empty((0, 1))
         else:
             params = lstsq(exog_resid, dep_resid, rcond=None)[0]
-            self._num_params += exog_resid.shape[1]
 
         cov_estimator = COVARIANCE_ESTIMATORS[cov_type]
         cov_config["debiased"] = debiased
@@ -1114,7 +1114,7 @@ class AbsorbingLS:
         results = {"kappa": 0.0, "liml_kappa": 0.0}
         pe = self._post_estimation(params, cov_estimator_inst, cov_type)
         results.update(pe)
-        results["df_model"] = self._num_params
+        results["df_model"] = self._num_params + params.shape[0]
 
         return AbsorbingLSResults(results, self)
 
@@ -1174,7 +1174,7 @@ class AbsorbingLS:
         const_loc = find_constant(
             cast("linearmodels.typing.data.Float64Array", self._exog.ndarray)
         )
-        resid_df = self._nobs - self._num_params
+        resid_df = self._nobs - self._num_params - params.shape[0]
 
         return f_statistic(params, cov, debiased, resid_df, const_loc)
 
